@@ -40,3 +40,12 @@ models:
     # Applies to all files under models/example/
     example:
       +materialized: table
+
+    staging:
+      # Applies to all files under models/staging/
+      # staging tables should be views
+      +materialized: view
+
+    # Marts are typically queried by BI tools
+    marts:
+      +materialized: table
