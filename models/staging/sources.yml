@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: stripe
+    database: raw        # the catalog/database in Databricks
+    schema: stripe       # the schema
+    tables:
+      - name: payment
