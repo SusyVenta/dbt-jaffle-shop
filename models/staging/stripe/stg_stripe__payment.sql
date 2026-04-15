@@ -15,7 +15,6 @@ renamed as (
         status as payment_status,
         amount as payment_amount,
         created as payment_created
-        -- _batched_at
     from source
 
 )
