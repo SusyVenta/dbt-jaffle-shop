@@ -8,6 +8,9 @@ using Databricks as data storage solution.
 https://hub.getdbt.com/metaplane/dbt_expectations/latest/
 https://hub.getdbt.com/dbt-labs/dbt_utils/latest/
 
+dbt test --select source:jaffle_shop
+dbt test --select source:*
+
 
 ## additional source columns added
 
