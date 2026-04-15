@@ -14,7 +14,8 @@ renamed as (
         paymentmethod as payment_method,
         status as payment_status,
         amount as payment_amount,
-        created as payment_created
+        created as payment_created,
+        _etl_loaded_at
     from source
 
 )
