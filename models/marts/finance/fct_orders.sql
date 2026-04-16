@@ -1,30 +1,59 @@
-with orders as  (
-    select * from {{ ref ('stg_jaffle_shop__orders' )}}
-),
+with
+    customers as (select * from {{ ref("stg_jaffle_shop__customers") }}),
 
-payments as (
-    select * from {{ ref ('stg_stripe__payment') }}
-),
+    paid_orders as (select * from {{ ref("int_orders") }}),
 
-order_payments as (
-    select
-        order_id,
-        sum (case when payment_status = 'success' then payment_amount end) as amount
+    final as (
 
-    from payments
-    group by 1
-),
+        select
+            paid_orders.order_id,
+            paid_orders.customer_id,
+            paid_orders.order_date,
+            paid_orders.order_status,
+            paid_orders.total_amount_paid,
+            paid_orders.payment_finalized_date,
+            customers.first_name,
+            customers.last_name,
 
- final as (
+            -- sales transaction sequence
+            row_number() over (
+                order by paid_orders.order_date, paid_orders.order_id
+            ) as transaction_seq,
 
-    select
-        orders.order_id,
-        orders.customer_id,
-        orders.order_date,
-        coalesce (order_payments.amount, 0) as amount
+            -- customer sales sequence
+            row_number() over (
+                partition by paid_orders.customer_id
+                order by paid_orders.order_date, paid_orders.order_id
+            ) as customer_sales_seq,
 
-    from orders
-    left join order_payments using (order_id)
-)
+            -- new vs returning customer
+            case
+                when
+                    (
+                        rank() over (
+                            partition by paid_orders.customer_id
+                            order by paid_orders.order_date, paid_orders.order_id
+                        )
+                        = 1
+                    )
+                then 'new'
+                else 'return'
+            end as nvsr,
 
-select * from final
+            -- customer lifetime value
+            sum(paid_orders.total_amount_paid) over (
+                partition by paid_orders.customer_id
+                order by paid_orders.order_date, paid_orders.order_id
+            ) as customer_lifetime_value,
+
+            -- first day of sale
+            first_value(paid_orders.order_date) over (
+                partition by paid_orders.customer_id
+                order by paid_orders.order_date, paid_orders.order_id
+            ) as fdos
+        from paid_orders
+        left join customers on paid_orders.customer_id = customers.customer_id
+    )
+
+select *
+from final

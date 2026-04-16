@@ -1,0 +1,10 @@
+functions:
+  - name: safe_divide
+    description: Safely divide numerator by denominator
+    arguments:
+      - name: numerator
+        data_type: double
+      - name: denominator
+        data_type: double
+    returns:
+      data_type: double

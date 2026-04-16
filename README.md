@@ -36,8 +36,13 @@ If any test fails, build fails so faulty data does not reach final dashboards.
 
 How to build models only including and upstream of a certain model: `dbt build --select +dim_customers`
 
+## Sources 
 
-## additional source columns added
+Importing existing sources: can use the [generate_source](https://github.com/dbt-labs/dbt-codegen/tree/0.14.0/#generate_source-source) yaml from codegen library 
+Create a new file template containing `{{ codegen.generate_source(schema_name= 'jaffle_shop', database_name= 'raw') }}` and run it for each schema.
+Never hardoce tables. Always use `from {{ source('<source name>', '<table name>') }}`
+
+### additional source columns added
 
 alter table raw.jaffle_shop.orders add column _etl_loaded_at TIMESTAMP;
 UPDATE raw.jaffle_shop.orders SET "_etl_loaded_at" = current_timestamp() WHERE _etl_loaded_at IS NULL;
@@ -168,3 +173,34 @@ Calling a macro:
 hub.getdbt.com
 
 add to packages.yml then run `dbt deps`
+
+## Best practices
+
+- Use sources and reference models instead of hardcoding sources. 
+- Use format button / automatic linting and formatting tools 
+- Use CTEs instead of subqueries. Use this structure: first import CTEs, then logical CTEs, then final CTEs, then final `select * from final`. 
+- Use comments to clarify logic 
+- Use fully qualified table names and references 
+- Split transformations into stage type:
+    - staging: casting, renaming fields on sources 
+    - intermediate (optional)
+    - marts 
+- file names should start either with `fct` (facts, main events) or `dim` (descriptinve context)
+- descriptive variables, CTEs, column names.
+- specify selected columns explicitly instead of select * 
+- Rename all variables once instead of multiple times throughout the logic 
+- Filter as early as possible as much as possible. Keep least amount of data.
+
+## Onboarding existing models and auditing diff with new refactored models 
+
+https://hub.getdbt.com/dbt-labs/audit_helper/latest/
+
+- `audit_helper.compare_row_counts` 
+- compare column values: `audit_helper.compare_all_columns`
+
+## User-defined Functions (UDFs)
+
+functions native to the data platform. 
+https://docs.getdbt.com/docs/build/udfs?version=1.12
+
+referenced using `{{ function(...) }}`
