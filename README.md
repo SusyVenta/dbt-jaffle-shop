@@ -146,7 +146,8 @@ select * from pivotd
 https://jinja.palletsprojects.com/en/stable/templates/
 
 Can use templating to refer to the stage (if prod, do something): https://docs.getdbt.com/docs/build/custom-target-names?version=1.12#dbt-cloud-ide
-
+dbt additional Jinja function available: https://docs.getdbt.com/reference/dbt-jinja-functions-context-variables?version=1.12
+    - e.g.: https://docs.getdbt.com/reference/dbt-jinja-functions/run_query?version=1.12 see macros/run_select
 ## Macros 
 
 Write generic reusable logic in one file. 
@@ -158,6 +159,12 @@ See macros/ folder
 
 Tradeoff: DRY with macros vs readability
 
+Calling a macro:
+- from a model: `{{ cents_to_dollars("amount", 4) }}`
+- standalone: `dbt run-operation grant_select`
+
 ## packages 
 
 hub.getdbt.com
+
+add to packages.yml then run `dbt deps`

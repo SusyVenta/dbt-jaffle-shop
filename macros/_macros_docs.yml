@@ -8,3 +8,12 @@ macros:
       - name: decimals 
         type: integer
         description: number of decimal places, defaults to 2
+  - name: grant_select 
+    description: Snowflake grant select to tables and views in target.schema to target.role unless otherwise specified. 
+    arguments:
+      - name: schema 
+        type: string 
+        description: schema we want to grant permissions to
+      - name: role 
+        type: string 
+        description: role we want to grant privs to. By default it's the target role. 
