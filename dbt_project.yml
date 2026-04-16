@@ -48,6 +48,10 @@ models:
       +materialized: view
       +schema: staging
 
+    intermediate:
+      +materialized: view
+      +schema: intermediate  
+
     # Marts are typically queried by BI tools
     marts:
       +materialized: table
