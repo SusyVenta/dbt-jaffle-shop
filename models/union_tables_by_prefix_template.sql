@@ -1,0 +1,1 @@
+{{ union_tables_by_prefix(database=target.database, schema=target.schema, prefix='stg') }}
