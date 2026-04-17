@@ -1,6 +1,16 @@
+{{ config(materialized="incremental", incremental_strategy="append") }}
+
 with
 
-    source as (select * from {{ source("stripe", "payment") }}),
+    source as (
+        select *
+        from {{ source("stripe", "payment") }}
+        {% if is_incremental() %}
+            -- this filter will only be applied on an incremental run
+            where _etl_loaded_at >= (select max(_etl_loaded_at) from {{ this }})
+        {% endif %}
+
+    ),
 
     renamed as (
 
