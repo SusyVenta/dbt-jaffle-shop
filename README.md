@@ -311,3 +311,15 @@ where id = 23;
 - Can be referenced with 'ref' macro 
 - Use case example: country codes, employee email addresses for small companies 
 - Not designed for large or frequently changin data (better to use an API in that case)
+
+## Exposures 
+
+- Way to provide visibility on how dbt models are used downstream e.g. by dashboards
+- Allow to easily identify POCs behind relevant models and metrics and therefore dashboards
+- YAML-defined resources that appear as a node in the lineage graph and represent downstream consumers of data models like:
+    - BI dashboards, data science notebooks, or external applications 
+- Allows to populate a dedicated page in the docs - catalog - with context relevant to data consumers 
+- Exposure files should be listed in the models/exposures/ dir 
+- https://docs.getdbt.com/docs/build/exposures?version=1.12
+- To ensure that your data that feeds into your exposures have been run recently, run: `dbt run --select +exposure:*`
+- to preview data of a metric that feeds an exposure: `dbt sl query --metrics order_total`
