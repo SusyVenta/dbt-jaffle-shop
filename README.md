@@ -263,3 +263,63 @@ functions native to the data platform.
 https://docs.getdbt.com/docs/build/udfs?version=1.12
 
 referenced using `{{ function(...) }}`
+
+## Snapshots - Slowly Changing Dimensions type 2 
+
+Snapshots implement type 2 SCD on immutable source tables. 
+You create a separate table that keeps track of all changes happened in your source table. 
+Track how a rows have changed over time.
+Configured in /snapshots folder in .yml files. 
+Should be handled with dedicated permissions so they cant be dropped and users know they're not the official tables.
+
+https://docs.getdbt.com/docs/build/snapshots?version=1.12
+
+Can identify changes by comparing columns or using an updated_at field (preferred). 
+
+Can select from snapshot tables using the ref macro, but can't preview or compile their SQL . 
+Snapshot tables are a clone of the source + additional meta fields.
+Snapshots need to be run twice to actually capture changes:  `dbt snapshot`:
+ - first time: creates initial snap table, all columns from select statement, dbt-meta fields added, dbt_valid_to = null 
+ - subsequent runs: check for changed records, update dbt_valid_to_column on changed records, isert updated records, dbt_valid_to = null or new record 
+
+`dbt build` automatically snapshots all snapshots
+
+from 'return_pending' to 'returned'
+```
+update raw.jaffle_shop.orders 
+set status = 'returned' 
+where id = 23;
+```
+
+`dbt snapshot`
+
+`select * from analytics.dbt_sventafridda.order_snapshot;` or in dbt `select * from {{ ref('order_snapshot') }}` --> both changes are there 
+
+## Analyses
+
+- In analysis folder. SQL files. Support jinja. Are not built when running `dbt build`, don't have tests, are not materialized. 
+- Can be compiled with `dbt compile`
+- Useful for 
+    - running one-off queries against DW
+    - training queries 
+    - auditing / refactoring. Build a refactored model to then compare with original source before replacing it. 
+
+## Seeds 
+
+- CSV files in the /data folder 
+- short amounts of data to be loaded into the DW as a table by running `dbt seed`
+- Can be referenced with 'ref' macro 
+- Use case example: country codes, employee email addresses for small companies 
+- Not designed for large or frequently changin data (better to use an API in that case)
+
+## Exposures 
+
+- Way to provide visibility on how dbt models are used downstream e.g. by dashboards
+- Allow to easily identify POCs behind relevant models and metrics and therefore dashboards
+- YAML-defined resources that appear as a node in the lineage graph and represent downstream consumers of data models like:
+    - BI dashboards, data science notebooks, or external applications 
+- Allows to populate a dedicated page in the docs - catalog - with context relevant to data consumers 
+- Exposure files should be listed in the models/exposures/ dir 
+- https://docs.getdbt.com/docs/build/exposures?version=1.12
+- To ensure that your data that feeds into your exposures have been run recently, run: `dbt run --select +exposure:*`
+- to preview data of a metric that feeds an exposure: `dbt sl query --metrics order_total`
