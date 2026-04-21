@@ -294,3 +294,20 @@ where id = 23;
 `dbt snapshot`
 
 `select * from analytics.dbt_sventafridda.order_snapshot;` or in dbt `select * from {{ ref('order_snapshot') }}` --> both changes are there 
+
+## Analyses
+
+- In analysis folder. SQL files. Support jinja. Are not built when running `dbt build`, don't have tests, are not materialized. 
+- Can be compiled with `dbt compile`
+- Useful for 
+    - running one-off queries against DW
+    - training queries 
+    - auditing / refactoring. Build a refactored model to then compare with original source before replacing it. 
+
+## Seeds 
+
+- CSV files in the /data folder 
+- short amounts of data to be loaded into the DW as a table by running `dbt seed`
+- Can be referenced with 'ref' macro 
+- Use case example: country codes, employee email addresses for small companies 
+- Not designed for large or frequently changin data (better to use an API in that case)
