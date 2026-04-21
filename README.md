@@ -263,3 +263,34 @@ functions native to the data platform.
 https://docs.getdbt.com/docs/build/udfs?version=1.12
 
 referenced using `{{ function(...) }}`
+
+## Snapshots - Slowly Changing Dimensions type 2 
+
+Snapshots implement type 2 SCD on immutable source tables. 
+You create a separate table that keeps track of all changes happened in your source table. 
+Track how a rows have changed over time.
+Configured in /snapshots folder in .yml files. 
+Should be handled with dedicated permissions so they cant be dropped and users know they're not the official tables.
+
+https://docs.getdbt.com/docs/build/snapshots?version=1.12
+
+Can identify changes by comparing columns or using an updated_at field (preferred). 
+
+Can select from snapshot tables using the ref macro, but can't preview or compile their SQL . 
+Snapshot tables are a clone of the source + additional meta fields.
+Snapshots need to be run twice to actually capture changes:  `dbt snapshot`:
+ - first time: creates initial snap table, all columns from select statement, dbt-meta fields added, dbt_valid_to = null 
+ - subsequent runs: check for changed records, update dbt_valid_to_column on changed records, isert updated records, dbt_valid_to = null or new record 
+
+`dbt build` automatically snapshots all snapshots
+
+from 'return_pending' to 'returned'
+```
+update raw.jaffle_shop.orders 
+set status = 'returned' 
+where id = 23;
+```
+
+`dbt snapshot`
+
+`select * from analytics.dbt_sventafridda.order_snapshot;` or in dbt `select * from {{ ref('order_snapshot') }}` --> both changes are there 
