@@ -1,0 +1,34 @@
+models:
+  - name: dim_customers
+    # if you keep v1 here, it means you're giving time to migrate to v2
+    latest_version: 2
+    columns:
+      - name: customer_id
+        data_type: bigint
+      - name: first_name
+        data_type: string
+      - name: last_name
+        data_type: string
+      - name: first_order_date
+        data_type: date
+      - name: most_recent_order_date
+        data_type: date
+      - name: number_of_orders
+        data_type: bigint
+      - name: customer_lifetime_value 
+        data_type: double
+
+    versions:
+      # each version will create a db relation with alias <model name>_v<v> unless you specify an alias
+      - v: 1
+        # same as the contract
+        config: 
+          alias: dim_customers
+        deprecation_date: 2026-05-23
+      - v: 2
+        columns:
+          # include all columns of the model except number_of_orders, then add a new number_of_orders column with new dtype: text
+          - include: all 
+            exclude: [number_of_orders]
+          - name: number_of_orders
+            data_type: text
