@@ -323,3 +323,73 @@ where id = 23;
 - https://docs.getdbt.com/docs/build/exposures?version=1.12
 - To ensure that your data that feeds into your exposures have been run recently, run: `dbt run --select +exposure:*`
 - to preview data of a metric that feeds an exposure: `dbt sl query --metrics order_total`
+
+## State 
+
+- dbt is by design 
+    - idempotent: executing `dbt build` command multiple times with the same data, produces the same results 
+    - stateless: each `dbt build` command runs independenty of the results of the previous build  
+- dbt does store state: a detailed, point in time view of project resources (nodes), db objects, and invocation results (artifacts)
+- dbt stores the following every time you execute `dbt build`:
+    - `manifest.json` - state of the resource files (models, sources, tests)
+    - `run_results.json` - state of the results of a command that was run 
+- We might want to leverage state to:
+    - build only new or recently modified models: `dbt run --select model_b+` or `dbt run --select state:modified+` checks wat changed vs last run and runs everythign downstream of it
+    - troubleshooting issues in the DAG: 
+        - `dbt retry`: automatically retries what failed in the previous execution 
+            - run_results.json is used to know what passed / failed in the last run 
+            - the same selectors of the prior command will be passed through 
+            - can be applied to: build, compile, clone, docs generate, seed, snapshot, test, run, run-operation
+
+## dbt Mesh 
+
+Choices:
+- single monolithic project architecture: your team interacts with a single dbt project. 
+    - ok when project is small or when the same team members support different business functions at the same time. 
+- dbt Mesh: a pattern that enables domain data ownership of your data assets without creating silos. 
+    - domain teams: can operate at different velocities, can expose their models to other teams 
+    - central data teams get visibility into the full lineage of transformations, are not a bottleneck for domain teams, run in a single platform 
+    - it's an architectural pattern supported by a number of features like:
+        - model governance:
+            - **Model contracts** : 
+                - every model can have a contract that defines guarantees around data shape so changes dont break downstream models. 
+                - allow you to guarantee the shape of your model: columns names and data types 
+                - if the model does not have the initially defined columns and dtypes, you get an error when doing dbt run 
+                - defined in .yml files by ilsting all columns, dtypes, constraints (e.g. not null - platform specific)
+                - constraints are pre-flight check vs tests are post-hoc checks
+                - see `models/marts/finance/_fct_orders.yml`
+            - **Model versions**: 
+                - when a model's contract changes in a way that's not backwards compatible, it should be reflected with a new version. Model versions also allow deprecating models.
+                - a model version is a separate sql file containing the new version of a model
+                - allow to test pre-release tests in production and give people time to migrate
+                - 2 ways to specify version: 
+                    - diff only (recommended) - see `models/marts/marketing/dim_customers.yml`
+                    - fully specified
+                - by default, the latest model reference is queried 
+                - to specify: `{{ ref('dim_customers', v=1) }}`
+                - to run: 
+                    - all versions: `dbt run --select dim_customers`
+                    - run a specific version: `dbt run --select dim_customers_v2`
+                    - run latest version: `dbt run -s dim_customers version:latest`
+            - **Groups and access modifiers**: 
+                - models can have private or public access levels, and they can be grouped. 
+                - You can control who can reference which models, from both centralized and decentralized project structures. 
+                - groups = DAG nodes that are related to one another and owned by a specific team. A way for a business to organize models based on ownership.
+                    - defined in a .yml file: either models yml or dedicated yml 
+                    - for each group you need to define at least: name and owner with a name and email address.
+                    - each model can only belong to one group. can specify in models yml file. Can also specify at folder level (dbt_project.yml)
+                    - see `models/groups.yml` and `models/marts/_fct_orders.yml`
+                - access modifiers: 
+                    - which models can access a specific model
+                    - 3 types:
+                        - public - can be accessed by models in any group, package, or project 
+                        - protected: DEFAULT - can be accessed by models in same project or group 
+                        - private: can only be accessed by models in same group
+                    - they are a separate config wrt DW permissions or dbt platform permissions!
+
+        - data discovery via dbt catalog: once correct permissions on a model have been set to share the model, the intended consumers can explore available models via the catalog. 
+        - cross-project reference: 
+            - add external project in `dependencies.yml` - supports declaring another dbt project as a dependency. 
+            - https://docs.getdbt.com/docs/mesh/govern/project-dependencies?version=1.12
+            - `{{ ref('external_project', 'public_model') }}` 
+            - to successfully reference a model, the model needs to be public and at least one successful job for that model must have run.

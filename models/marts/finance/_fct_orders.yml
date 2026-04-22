@@ -1,0 +1,39 @@
+models:
+- name: fct_orders
+  description: Orders fact table at the order level. This table contains one row per
+    order and includes the order date and payment finalized date.
+  config: 
+    contract: 
+      enforced: true
+    group: finance
+    access: public
+  columns:
+  - name: order_id
+    data_type: bigint
+  - name: customer_id
+    data_type: bigint
+  - name: order_date
+    data_type: date
+  - name: order_status
+    data_type: string
+  - name: total_amount_paid
+    description: The total amount paid for the orders
+    data_type: double
+  - name: payment_finalized_date
+    data_type: date
+  - name: first_name
+    data_type: string
+  - name: last_name
+    data_type: string
+  - name: transaction_seq
+    description: The sequence of the transaction.
+    data_type: int
+  - name: customer_sales_seq
+    data_type: int
+  - name: nvsr
+    data_type: string
+  - name: customer_lifetime_value
+    description: The lifetime value of the customer.
+    data_type: double
+  - name: fdos
+    data_type: date
