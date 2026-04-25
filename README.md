@@ -22,6 +22,49 @@ Before running tests, run `dbt run`, which builds all models in DAG order.
 `dbt test --select test_type:generic`
 `dbt test --select test_type:singular`
 
+
+Data tests = assertions made on models, sources, seeds, or snapshots in a dbt projects.
+SQL satements that if produce result rows make the test fail. 
+dbt ensures data quality through a testing framework. 
+Why test:
+    - ensure code works as expected 
+    - produce accurate data 
+    - build trust with stakeholders 
+    - save time for future development
+
+What makes a good test:
+    - automated
+    - fast 
+    - reliable 
+    - informative
+    - focused
+
+Types:
+    - standard: unique / not null / accepted values 
+    - contents of the data 
+    - constraints of the table 
+    - grain of the table 
+    - compare different tables 
+    - freshness of data -> warn / error 
+    - compare new refactored models vs legacy ones: dbt audit_helper package 
+
+Packages: dbt_expectations / dbt_utils / dbt_meta_testing
+
+https://docs.getdbt.com/blog/how-to-build-a-mature-dbt-project-from-scratch?version=1.12
+
+`dbt_meta_testing` package to validate we are in line with testing expectations we created in the team. 
+    - Can enforce test coverage. Specify required coverage in dbt_project.yml 
+    - To exclude one model - at the top of the model add:
+        ```
+        {{ config(required_tests=None) }}
+        ```
+    - `dbt run-operation required_tests` - can be integrated in the CI build: `dbt run-operation required_tests --args "{'models':'$(dbt list -m state:modified --state target)'}"`
+
+Tests can be defined in:
+- models/*.yml : only generic tests. Can schedule in production. 
+- custom tests in /test dir. .sql files. 
+- source freshness tests in /staging/*_sources.yml --> `dbt source freshness` can be scheduled in production
+
 ## `dbt build`
 
 To run models and test on them progressively, in DAG order, use `dbt build`.
@@ -393,3 +436,5 @@ Choices:
             - https://docs.getdbt.com/docs/mesh/govern/project-dependencies?version=1.12
             - `{{ ref('external_project', 'public_model') }}` 
             - to successfully reference a model, the model needs to be public and at least one successful job for that model must have run.
+            - can trigger a job to run after another job has finished, even if the other job is from a different project.
+
