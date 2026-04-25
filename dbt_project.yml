@@ -38,15 +38,16 @@ clean-targets:         # directories to be removed by `dbt clean`
 models:
   # project name - must correspond to name above
   jaffle_shop:
-    # Applies to all files under models/example/
-    example:
-      +materialized: table
+    # +meta:
+    #   required_tests: {"unique.*|not_null": 2}
 
     staging:
       # Applies to all files under models/staging/
       # staging tables should be views
       +materialized: view
       +schema: staging
+      +meta:
+        required_tests: {"unique.*|not_null": 2}
 
     intermediate:
       +materialized: view

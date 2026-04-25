@@ -1,0 +1,12 @@
+models:
+  - name: stg_stripe__payment
+    columns:
+      - name: payment_id
+        tests:
+          - not_null
+      - name: order_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_jaffle_shop__orders')
+                field: order_id
