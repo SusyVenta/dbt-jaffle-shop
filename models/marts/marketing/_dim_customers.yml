@@ -5,18 +5,34 @@ models:
     columns:
       - name: customer_id
         data_type: bigint
+        description: Primary key
+        tests:
+          - unique
+          - not_null
+          - dbt_utils.cardinality_equality:
+              arguments:
+                field: customer_id
+                to: ref('stg_jaffle_shop__customers')
       - name: first_name
         data_type: string
       - name: last_name
         data_type: string
       - name: first_order_date
         data_type: date
+        description: NULL when a customer has not yet placed an order.
       - name: most_recent_order_date
         data_type: date
       - name: number_of_orders
         data_type: bigint
       - name: customer_lifetime_value 
         data_type: double
+        description: Lifetime value of a customer based on orders purchased
+        tests: 
+          - greater_than_x:
+              arguments:
+                _model: ref('dim_customers')
+                column_name: customer_id
+                x: 1
 
     versions:
       # each version will create a db relation with alias <model name>_v<v> unless you specify an alias

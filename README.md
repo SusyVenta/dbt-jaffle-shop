@@ -21,7 +21,11 @@ Before running tests, run `dbt run`, which builds all models in DAG order.
 
 `dbt test --select test_type:generic`
 `dbt test --select test_type:singular`
+`dbt test --select test_type:data` - not nulls, expected values, unique, ...
+`dbt test --select test_type:unit` - runs unit tests. Expects the output of a model to align with some provided sample data. 
+`dbt test --select int_customers --store-failures` - materializes the results of this test into the DW. Can then go to the dbt Insights tab and query `select * from analytics.dbt_ventafri.not_null_stg_jaffle_shop__customers_null_test;`
 
+Best way to run tests: `dbt build --fail-fast`: immediately cancels dbt run if you have a failure. Any failure stops the run immediately, even for unrelated models.  
 
 Data tests = assertions made on models, sources, seeds, or snapshots in a dbt projects.
 SQL satements that if produce result rows make the test fail. 
@@ -48,7 +52,18 @@ Types:
     - freshness of data -> warn / error 
     - compare new refactored models vs legacy ones: dbt audit_helper package 
 
-Packages: dbt_expectations / dbt_utils / dbt_meta_testing
+More types:
+    - singular test: custom SQL to test a specific model 
+    - generic test: custom SQL to test multiple models. You can use these to override dbt's own generic tests (not nulls, unique, etc).
+
+Packages: 
+    - dbt_expectations
+    - dbt_utils
+    - dbt_meta_testing
+    - [dbt-coverage](https://github.com/dbt-checkpoint/dbt-checkpoint)
+        A bunch of hooks to run locally before you actually commit changes
+    - [dbt_dataquality](hub.getdbt.com/divergent-insights/dbt_dataquality/latest/)
+    - [dbt-project-evaluator](https://github.com/dbt-labs/dbt-project-evaluator)
 
 https://docs.getdbt.com/blog/how-to-build-a-mature-dbt-project-from-scratch?version=1.12
 
@@ -64,6 +79,12 @@ Tests can be defined in:
 - models/*.yml : only generic tests. Can schedule in production. 
 - custom tests in /test dir. .sql files. 
 - source freshness tests in /staging/*_sources.yml --> `dbt source freshness` can be scheduled in production
+
+When to test:
+    - in development - to find bugs before opening a pull request
+    - pre-commit hooks
+    - automatically as an approval AND/OR CI check in your PR. Fail deployment if tests fail. 
+    - in production with notification failures
 
 ## `dbt build`
 

@@ -10,8 +10,19 @@ models:
   columns:
   - name: order_id
     data_type: bigint
+    description: Primary key for orders
+    tests:
+      - unique
+      - not_null
   - name: customer_id
     data_type: bigint
+    tests:
+      - relationships:
+          arguments:
+            to: ref('stg_jaffle_shop__customers')
+            field: customer_id
+      # this test should fail, use `dbt test -s fct_orders --store-failures` to find results --> select * from analytics.dbt_sventafridda.unique_fct_orders_customer_id
+      # - unique
   - name: order_date
     data_type: date
   - name: order_status
@@ -19,6 +30,25 @@ models:
   - name: total_amount_paid
     description: The total amount paid for the orders
     data_type: double
+    tests: 
+      - greater_than_x:
+          arguments:
+            _model: ref('fct_orders')
+            column_name: customer_id
+            x: 1
+      - dbt_expectations.expect_column_values_to_be_between: 
+      # this will perform what the dbt_utils.expression-is-true test does!
+          arguments:
+            min_value: 0
+            row_condition: "order_id is not null"
+            strictly: false
+      - dbt_expectations.expect_column_mean_to_be_between: 
+      # this will perform what our singular and generic tests do!
+          arguments:
+            min_value: 1
+            group_by: [customer_id] 
+            row_condition: "order_id is not null" # (Optional)
+            strictly: false
   - name: payment_finalized_date
     data_type: date
   - name: first_name
