@@ -13,7 +13,11 @@ models:
     description: Primary key for orders
     tests:
       - unique
-      - not_null
+      - not_null:
+          config: 
+            severity: warn
+            error_if: ">= 100"
+            store_failures: true
   - name: customer_id
     data_type: bigint
     tests:
@@ -21,8 +25,10 @@ models:
           arguments:
             to: ref('stg_jaffle_shop__customers')
             field: customer_id
-      # this test should fail, use `dbt test -s fct_orders --store-failures` to find results --> select * from analytics.dbt_sventafridda.unique_fct_orders_customer_id
-      # - unique
+      # this test should raise a warning, use `dbt test -s fct_orders --store-failures` to find results --> select * from analytics.dbt_sventafridda.unique_fct_orders_customer_id
+      - unique:
+          config: 
+            severity: warn
   - name: order_date
     data_type: date
   - name: order_status
@@ -49,6 +55,11 @@ models:
             group_by: [customer_id] 
             row_condition: "order_id is not null" # (Optional)
             strictly: false
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: ">=0"
+            config:
+              where: "order_date = current_date() "
   - name: payment_finalized_date
     data_type: date
   - name: first_name

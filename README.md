@@ -60,6 +60,7 @@ Packages:
     - dbt_expectations
     - dbt_utils
     - dbt_meta_testing
+    - audit_helper
     - [dbt-coverage](https://github.com/dbt-checkpoint/dbt-checkpoint)
         A bunch of hooks to run locally before you actually commit changes
     - [dbt_dataquality](hub.getdbt.com/divergent-insights/dbt_dataquality/latest/)
