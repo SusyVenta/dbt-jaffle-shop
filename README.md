@@ -460,3 +460,168 @@ Choices:
             - to successfully reference a model, the model needs to be public and at least one successful job for that model must have run.
             - can trigger a job to run after another job has finished, even if the other job is from a different project.
 
+
+## Deployments
+
+
+- Environments: 
+    - you can specify 3 things:
+        - dbt version 
+        - git branch 
+        - data location 
+    - 2 types of environments in dbt cloud: 
+        - development: you only have one per dbt project --> all developers have the same configs except use different branches and different schemas
+            - dbt - env. setting. E.g. `v1.3`
+            - git - IDE interface. E.g. `feat/orders`  
+            - profile setting . E.g. `dbt_ventafri` 
+        - deployment: 
+            - can have as many environments as you want and configure the following at environment level. 
+                - dbt - env. setting. E.g. `v1.3` 
+                - git - env. setting. E.g. `main` 
+                - data source - env. setting. E.g. `analytics` 
+            - within a deployment environment you can have:
+                - job: 
+                    - a sequence of dbt commands (dbt run, test, build) that you want to run on a schedule or triggered 
+                    - can be triggered directly through dbt cloud OR via API call 
+                    - when a job completes a run, it produces run results. You can set up notifications for when things pass / fail 
+
+- deployment architectures:
+    - the way you organize your automatic execution of your dbt project into different locations in your data platforms. 
+    - allows us to run and test our dbt project at various stages of development, between the time we have written code to deployig to prod. 
+    - 2 git promotion strategies:
+        - direct promotion - one trunk: feature branches are directly merged into the main branch of your repo 
+            - developers run tests locally, raise PR, then merge once approved. 
+            - If CI is configured, tests will automatically run 
+            - form of continuous deployment 
+            - a scheduled job will pull from main once new changes are pushed. 
+            - how to set up with dbt Cloud:
+                - menu -> Orchestration -> Environments -> new
+                - environment name: `Production`  
+                    - environmen type: `Deployment`
+                    - Set deployment type: Production 
+                    - dbt version: latest fusion 
+                    - connection profile: `DatabricksProd` - specifies schema and target variable name (can be referenced in Jinja)
+                    - create new job in the prod profile:
+                        - commands:
+                            - `dbt build`
+                            - `dbt run-operation required_tests --args "{'models':'$(dbt list -m state:modified --state target)'}"`
+                - environment name: `Development`  
+                    - environmen type: `Development`
+                    - dbt version: latest fusion 
+                    - default to a custom branch: unchecked
+                    - connection profile: `Databricks` - specifies schema and target variable name (can be referenced in Jinja)        
+        - indirect promotion / many trunk promotion: feature branches are first merged into an intermediate branch for additional testing, before promoting into production environment.
+            - feature branches are reviewed individually + PR + CI automated checks if configured 
+            - qa branch gives time to do more test. The QA branch is deployed to the warehuse to do some parallel testing. Ensure all features runs together without error before merging to prod. 
+            - qa branch then merges to main all new features at once. 
+            - how to set up with dbt Cloud:
+                - menu -> Orchestration -> Environments -> new
+                - environment name: `Development`  
+                    - environmen type: `Development`
+                    - dbt version: latest fusion 
+                    - default to a custom branch: checked 
+                    - custom branch: `qa`
+                - environment name: `QA`  
+                    - environmen type: `Deployment`
+                    - Set deployment type: Production 
+                    - dbt version: latest fusion 
+                    - default to a custom branch: checked 
+                    - custom branch: `qa`
+                    - connection profile: `...` - specify schema `analytics_qa`
+                    - create a job in here and schedule it
+                - environment name: `Prod`  
+                    - environmen type: `Deployment`
+                    - Set deployment type: Production 
+                    - dbt version: latest fusion 
+                    - default to a custom branch: unchecked --> uses main
+                    - connection profile: `...` - specify schema `analytics`
+                    - create a job in here and schedule it
+
+- jobs:
+    - common deployment jobs:
+        - daily: incremental jobs 
+        - once a week rebuild all models 
+        - time sensitive jobs: frequently rebuilds only certain marts models 
+        - fresh rebuild: leverages source freshness to only refresh models that depend on sources that have been refreshed.  
+    - recommendations:
+        - start with one incremental job, then add more selective runs if needed 
+        - ways to build these selective runs:
+            - tag models with frequency they need to be built. Then use one dbt cloud jobb to execute all models with the relevant tag on a specific schedule 
+            - build only the models a particular exposure depends on --> can refresh an exposure easily. 
+            - build everything from source data onward if a specific source is updated frequently 
+            - build a particular sub directory in order to get all e.g. finance data updated 
+        - what if you need to run two portions of the DAG that are partially overlapping and don't want to run the overlaps twice?
+            - union - denoted by a space: `dbt build --select +fct_orders +fct_payments__pivoted`: runs upstream nodes of both models and checks for upstream parents so that they are only run once. 
+            - intersection - denoted by a comma: `dbt build --select +fct_orders,+fct_payments__pivoted`: only runs the shared parents between these 2 models.
+        - you can enable a job to only build out models that have sources refreshed after another job has run: `dbt build --select source_status:fresher+` https://docs.getdbt.com/docs/build/sources?version=1.12
+
+- Orchestration:
+    - dbt cloud offers 3 ways to automatically run jobs:
+        - schedule: easy or Cron (minute, hour, day of month, month, day of week).  
+        - webhook / trigger: check "run on pull requests" --> runs a job whenever a new change is pushed 
+        - via dbt cloud API: can be called from a script locally e.g. [Airflow](https://docs.getdbt.com/guides/airflow-and-dbt-cloud?step=1) / as part of CI/CD deployment 
+            - personal token: profile -> API access --> get personal token --> has same permissions as your user. Might not be the correct level. 
+            - service token: allows to specify e.g. admin token 
+                - 3 tools to trigger a job via API:
+                    - use already written wrapper with extra functionality  https://github.com/data-mie/dbt-cloud-cli 
+                    - curl: 
+                        ```
+                            curl --request POST \
+                            --url https://cloud.getdbt.com/api/v2/accounts/52322/jobs/133918/run/ \
+                            --header 'Content-Type: application/json' \
+                            --header 'Authorization: Token dbts_QcfQq8IORoHm1qgRxFEFUXrYIRxSe-bYBVfTXKkwT7O4yuU3vEI13wCQ==' \
+                            --data '{"cause":"Triggered from curl"}'
+                        ```     
+                    - python: `python3 trigger_dbt_cloud_api.py`
+                        ```
+                            import requests
+
+                            headers = {
+                                'Authorization': 'Token dbts_QcfQq8IORoHm1qgRxFEFUXrYIRxSe-bYBVfTXKkwT7O4yuU3vEI13wCQ==',
+                            }
+
+                            json_data = {
+                                'cause': 'Triggered from a Python script',
+                            }
+
+                            response = requests.post(
+                                'https://cloud.getdbt.com/api/v2/accounts/52322/jobs/133918/run/',
+                                headers=headers,
+                                json=json_data
+                            )
+                        ```
+                    
+        - manual runs from UI 
+    - coordinating different jobs:
+        - by default a job can only run once at a time. However, multiple jobs can have concurrent runs which may refresh the same models in a way that interferes with each other. 
+        - if 2 overlapping jobs try to update the same model at the same time, only the first job will succeed, and the second will remain queued.
+        - Example: an incremental model runs daily Mon-Sun every 30 min. On Sunday, a full refresh also is scheduled with a separate job.
+            - job 1) `dbt build --select +fct_orders+`. Custom cron schedule: `15,45 * * * 1-6`
+            - job 2) `dbt build --select +fct_orders+`. Custom cron schedule: `15,45 0-4,8-23 * * 0`
+
+- Continuous integration / CI:
+    - practice used in software engineering where you build in automated builds and tests to your cde base before you merge onto your deployment branch 
+    - avoids production issues 
+    - You can set up a job that runs `dbt build` when a pull request is open. It will run models in a dedicated "pr" schema, in a dedicated environment for the CI workflow.
+        - if `dbt build` fails in this job, the merge fails. 
+        - Issue: you could have thousands of models. It's expensive and unnecessary to rebuild them all. Only need to build models affected by your changes. 
+            - --> Use **Slim CI**: runs on pull request, rebuilds only changed nodes and their dependencies 
+            - `dbt build --select state:modified+`
+    - 1) created dedicated CI environment and 2) create a job sheduled with webhooks -> run on pull requests. 
+        no matter what schema you specify, models buildt this way are actually built into a temp schema dedicated to the specific pr.
+    - https://www.getdbt.com/blog/adopting-ci-cd-with-dbt-cloud
+    
+- Customizing dbt job behavior in different environments:
+    - using different databases or schemas: see `macros/generate_schema_name.md` --> can reference with: 
+        - `target` Jinja variable: contains info about your active DW connection. E.g. target.name == name configured in your environment under 'target'.  
+        - or environment variables:
+            - in dbt can be set at the following levels - with corresponding order of precedence:
+                - (4) defalt argument level
+                - (3) project
+                - (2) environment
+                - (1) job 
+                - (1) personal developmer
+            - all env vars need to start with `DBT_MY_ENV`
+            - value can be retrieved with `{{ env_var('DBT_MY_ENV') }}` or `{{ env_var('DBT_MY_ENV', '<default_value>') }}`
+    - limiting number of rows read when in prod vs dev 
+    - changing severity of a test 
