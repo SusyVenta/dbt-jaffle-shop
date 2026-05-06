@@ -625,3 +625,83 @@ Choices:
             - value can be retrieved with `{{ env_var('DBT_MY_ENV') }}` or `{{ env_var('DBT_MY_ENV', '<default_value>') }}`
     - limiting number of rows read when in prod vs dev 
     - changing severity of a test 
+
+
+## DBT clone 
+
+- allows to create a copy of the database objects without copying the underlying data
+- allows to create lightweight copies of the production data, which can be used for testing
+- prerequisites;
+    - successful job run in prod environment 
+    - Enable Defer to production 
+    - invoke `dbt clone` from the command bar. E.g. `dbt clone --select stg_jaffle_shop__customers` 
+- use cases:
+    - blue/green continuous deployment (on data warehouses that support zero-copy cloning tables - Snowflake, Databricks, or BigQuery. Same as Redshift datashares)
+    - cloning the current production state into development schema 
+    - handling incremental models in dbt Cloud CI jobs 
+        - `if is_incremental()` blocks only get executed if the table exists, otherwise it loads everything. 
+        - this can be problematic when testing 
+        - --> we can have these commands in our CI job:
+            - first clone into the PR schema the incremental models that have been modified and their dependencies. Then build modified models and their dependencies.
+            - `dbt clone --select state:modified+,config.materialized:incremental` && `dbt build --select state:modified+`
+    - testing code changes on downstream dependencies in your BI tool  
+
+## Grants 
+
+- https://docs.getdbt.com/reference/resource-configs/grants?version=1.12
+- way to define permissions for specific resources (models, seeds, snapshots) in the dbt project. 
+- ensured after completes building a table or view
+- 2 key components - vary by data platform. (e.g. for redshift: users, groups, roles):
+    - priileges 
+    - grantees: people or roles 
+- can be configured in:
+    - dbt_project.yml - global config for a folder or whole project 
+    - at model / seed / snapshot level in dedicated file 
+
+## Python models 
+
+- do same things as SQL models: reads in dbt sources, applies transformations, returns transformed datasets 
+- allow to solve use cases that can't be solved with SQL - they complement SQL models 
+- perform analysis using tools from open source Python ecosystem 
+- single infrastructure and orchestration to run Python transformations 
+- For example in `models/python_demo/`, you could create a file `is_holiday_2026.py` containing:
+    ```
+        import holidays 
+        import pandas as pd 
+
+
+        def model(dbt, session):
+            dbt.config(
+                materialized = "table",
+                packages=['pandas', 'holidays'],
+                submission_method="serverless_cluster"
+                )
+            # df = dbt.ref("upstream_model_name")
+
+            # if dbt.is_incremental:
+            #     # only new rows compared to max in current table
+            #     max_from_this = f"select max(updated_at) from {dbt.this}"
+            #     df = df.filter(df.updated_at >= session.sql(max_from_this).collect()[0][0])
+
+            us_holidays = holidays.US()
+            df = dbt.ref('date_spine').to_pandas()
+            df['IS_HOLIDAY'] = df['DATE_DAY'].apply(lambda date: date in us_holidays)
+
+            return df
+
+
+
+        # from pyspark.sql import functions as F
+
+        # def model(dbt, spark):
+        #     df = spark.table("my_schema.my_table")
+        #     return df.groupBy("col").agg(F.sum("amount"))
+    ```
+- pandas is only appropriate for small / medium datasets. For larger datasets, you can use platform specific tech. E.g. Databricks supports PySpark 
+- https://docs.getdbt.com/guides/how-to-use-databricks-workflows-to-run-dbt-cloud-jobs?step=1
+
+# Exam tips:
+
+- Read the full study guide: 
+    - download from https://learn.getdbt.com/courses/analytics-engineering-exam-study-guide
+    - saved a copy to `exam/dbt_analytics_engineering_certification_exam_study_guide.pdf`
