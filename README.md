@@ -9,7 +9,192 @@ https://www.getdbt.com/dbt-certification
 
 Reference repo (outdated): https://github.com/dbt-labs/dbt-Fundamentals-finished-project
 
+## dbt Overview
+
+- Tool for analytics development lifecycle
+- Allows to manage and automate data transformation, ensuring data is clean and analytics ready.
+- **Features:**
+  - Version-control on transformations
+  - Automation and scheduling: you can schedule data transformations, since source data is already in the data warehouse (ELT).
+  - Testing: built-in testing features to validate transformations ensuring data quality and integrity.
+- Integrates with the ELT model: load data from sources in data warehouse and leverage that to do the transformations. Benefits:
+  - Cloud native DW have massive processing power
+  - Faster raw data availability
+  - Cost savings due to using cloud instead of on-premise
+  - Allows more flexible and democratic transformations: everyone has access to raw data and can transform it in stages, iteratively
+- DBT is part of the Transform phase in ELT.
+- **Data pipeline:** Data sources → loader → data platform (Redshift / BigQuery etc) → DBT → BI tools / ML models / operational analytics
+- **DBT == structured context layer:**
+  - Rich context and metadata.
+  - Centrally defined semantics: to define and centralize metric definitions.
+  - Lineage DAGs (Directed Acyclic Graphs). Show original data sources, followed by DBT models. DBT Models are SQL select queries, transforming the data.
+- Described as "Data control plane", because it coordinates how data is transformed, tested, and documented across systems:
+  - Contains / Allows visibility into:
+    - Orchestration
+    - Observability
+    - Catalog
+    - Semantics
+    - Transformation
+  - All powered by DBT fusion engine
+
+---
+
+## Framework: Analytics Development LifeCycle (ADLC)
+
+- Goal == to provide a structured process to develop, test, and maintain analytics work.
+- Describes how data work happens from the moment you identify a business question to the moment you deliver insights.
+- **8 phases that loop continually:**
+  1. **Plan:** scope the business request, clarify priorities, and clarify expectations. You want to work on the right things at the right time.
+  2. **Development:** write code to transform raw data into something useful: SQL models + documentation + metadata that describes the logic behind them. DBT has a module structure, so you can build on top of each model.
+  3. **Testing:** while developing you need to test. Tests are built in the code base. You can write default checks like null checks or custom business logic. Ensure data is trustworthy before it reaches production. Catch issues early on.
+  4. **Deploy:** changes go live. Can configure automated deployment workflows tied to your git repo.
+  5. **Operate:** once the code is live, it needs to run consistently. Need to manage production pipelines: scheduling jobs, monitoring runtime or setting up alerts for errors. Ensuring reliability.
+  6. **Observe:** track what happened. Have tests passed? Are there anomalies in the data? Run history, logs, test alerts. Allow to monitor proactively.
+  7. **Discover:** data consumers can explore the models, read documentation and find answers. Documentation, metadata, lineage. DBT catalog.
+  8. **Analyze:** dashboard / ml notebook… someone is making decisions based on data. Sometimes leads to more planning (phase 1).
+
+- **Coordinates 6 key activities:**
+  - **Design:** DBT Mesh. Teams define ownership. Different teams can own different models.
+  - **Discovery:** DBT Catalog makes models, sources, and documentation searchable.
+  - **Align:** DBT Semantic layer. Define metrics once and use them everywhere.
+  - **Build:** developers use DBT Studio / DBT Canvas / VS Code extension to write and test code.
+  - **Deploy:** DBT Scheduler and CI: ensure only approved and tested deployment goes live.
+  - **Observe:** tests, alerts, lineage. DBT monitors everything in flight.
+
+- Aligns data work with software engineering best practices — version control, testing, and continuous improvement.
+
+## DBT Platform
+
+- Several projects in one DBT account
+- **DBT "catalog":**
+  - Stores metadata on projects: all DBT models and all documentation for each project
+  - → click on one project
+    - → get high level overview of assets (models, sources, tests)
+    - Can view lineage for the project: nodes can be:
+      - (data) source: raw data
+      - model:
+        - SQL that transforms raw data. You can see:
+          - Code
+          - Overview (last run, test results, upstream sources, lineage, owner, tags, relationships)
+          - Columns: all columns, type, tests. See column level lineage.
+          - Performance of model: exec times, success/failed, test results, how many times built, how many times people query the model (last 1 week → 3 months). → can decide to deprecate.
+      - semantic model
+      - Metrics
+      - Other projects
+      - Exposure
+      - Snapshot
+      - Seed
+      - Saved query
+      - Tableau
+- **Orchestration → Environments:**
+  - Environment = way to separate jobs, execution in development vs production.
+  - 2 types:
+    - 1 dev environment per project. Tagged with "DEV"
+    - Deployment environment: can run on different branches. As many as you want. Can tag which one is PROD.
+  - Each environment contains:
+    - Scheduled jobs and latest runs + status + when executes next.
+  - Orchestration allows to schedule jobs to keep models up to date.
+- **Studio:** sort of web IDE:
+  - Contains git repo - file explorer
+  - By opening a query, you can see lineage for a specific column of the model
+  - Can preview model == execute and get 500 rows
+  - Compile: compiles Jinja template with e.g. data sources. Normally happens at runtime, but can also explore via UI.
+  - Build: takes SQL, runs it in the data platform and creates the data object. Can see logs live. In the logs you can see what data objects is creating (e.g. a view) and at what location in the data platform. Depending on what environment you are, you will build the object in a different schema for example.
+  - `stg_tpch.yml` Yaml file containing stage configs for each model.
+    - Model name, description, columns (name, description, tests)
+
+## How to use DBT (https://docs.getdbt.com/docs/introduction?version=1.12)
+
+- **What is DBT?**
+  - dbt is the industry standard for data transformation. Apply software engineering best practices like version control, testing, modularity, CI/CD, and documentation to analytics workflows.
+  - The dbt framework is composed of a language and an engine:
+    - The **dbt language** is the code you write in your dbt project — SQL select statements, Jinja templating, YAML configs, tests, and more. It's the standard for the data industry and the foundation of the dbt framework.
+    - The **dbt engine** compiles your project, executes your transformation graph, and produces metadata. dbt supports two engines which you can use depending on your needs:
+      - The **dbt Core engine**, which renders Jinja and runs your models.
+        - dbt Core is the open-source, Python-based engine that enables data practitioners to transform data. dbt Core surfaces feedback when you run or build your project. It doesn't include Fusion features like the LSP, for example, which provides instant feedback as you type.
+      - The **dbt Fusion engine**, which goes beyond Jinja rendering to statically analyze your SQL — validating syntax and logic before your SQL is sent to the database (saving compute resources), and supports LSP features.
+        - The dbt Fusion engine is a Rust-based engine that delivers a lightning-fast development experience, intelligent cost savings, and improved governance. Fusion understands SQL natively across multiple dialects, catches errors instantly, and optimizes how your models are built — bringing SQL comprehension and state awareness, instant feedback, LSP, and more to every dbt workflow. Fusion powers dbt in the dbt platform, VS Code / Cursor, and locally from the command line. You don't need to have a dbt platform project to use the dbt Fusion engine.
+
+- **Use dbt platform (UI):**
+  - The dbt platform offers the fastest, most reliable, and scalable way to deploy dbt. It can be powered by the dbt Fusion engine or dbt Core engine, and provides a fully managed service with scheduling, CI/CD, documentation hosting, monitoring, development, and alerting through a web-based user interface (UI).
+  - Can develop 1) in browser 2) drag and drop 3) local dev in VS Code with extension or CLI
+
+- **Local development**
+  - Install the dbt VS Code extension — Combines the dbt Fusion engine performance with visual features like autocomplete, inline errors, and lineage. Includes LSP features and suitable for users with dbt platform projects or running dbt locally without a dbt platform project. Recommended for local development.
+  - Install the Fusion CLI — The dbt Fusion engine from the command line, but doesn't include LSP features.
+  - Install the dbt CLI — The dbt platform CLI, which allows you to run dbt commands against your dbt platform development environment from your local command line.
+  - Install dbt Core — The open-source, Python-based CLI that uses the dbt Core engine. Doesn't include LSP features.
+
+Both ways support both
+
+## Why use dbt
+
+As a dbt user, your main focus will be on writing models (select queries) that reflect core business logic – there's no need to write boilerplate code to create tables and views, or to define the order of execution of your models. Instead, dbt handles turning these models into objects in your warehouse for you.
+
+- **No boilerplate** — Write business logic with just a SQL `select` statement or a Python DataFrame. dbt handles materialization, transactions, DDL, and schema changes.
+- **Modular and reusable** — Build data models that can be referenced in subsequent work. Change a model once and the change propagates to all its dependencies, so you can publish canonical business logic without reimplementing it.
+- **Fast builds** — Use incremental models and leverage metadata to optimize long-running models.
+- **Tested and documented** — Write data quality tests on your underlying data and auto-generate documentation alongside your code.
+- **Software engineering workflows** — Version control, branching, pull requests, CI/CD, and package management for your data pipelines. Write DRY code with macros and hooks.
+- **State-aware orchestration** — Use the dbt Fusion engine to orchestrate your dbt projects and models with state-awareness orchestration, which automatically determines which models to build by detecting changes in code or data. This reduces runtime and costs by only building the models that have changed.
+
+---
+
+## Setup
+
+- Created DBT trial account https://www.getdbt.com/signup free trial 14 days but then can switch to single developer and continue testing for free
+- 2 options:
+  - develop, build, deploy from the UI
+  - local development
+
+Followed Databricks setup:
+
+- SQL Warehouses -> Start
+- New → Add or upload data → Create or modify table
+- Created new "analytics" catalog
+- User -> settings → developer → access tokens → comment = "dbt", lifetime = 90, scope = BI tools API scope = "sql" → save token
+- Get server host name from URL → will be needed for DBT: `<some string>.cloud.databricks.com`
+- SQL warehouses -> select warehouse → connection details → HTTP path → get URL path `"sql/warehouses/<wh id>"`
+- When initializing dbt Databricks connection, specify "Optional settings", "Catalog" = "analytics"
+- Use BDT studio → initialize dbt project
+
+## Creating and building models
+
+- `dbt run`: creates objects corresponding to models in the data platform. Vs preview does not create objects, just runs a test query without loading data.
+- `dbt run --select <model name>`: only builds one model
+- `dbt run --select +<model name>`: only runs model and upstream dependencies. Add plus at the end → builds downstream
+- By default, models are materialized as views.
+- `{{ config(materialized='table') }}` at the top makes it a table. Calls a macro with Jinja template.
+- Even if not specified at the top of the model, the default behavior can be specified in `dbt_project.yml`. This is the global level. Things specified at model level override global settings.
+- To see full lineage: "my_new_project" (name given in `dbt_project.yml`)
+- To get macros: type `__ref` for example → tab → gets ref macro: `{{ ref('stg_jaffle_shop__customers') }}`
+
+- **Model naming conventions:**
+  - **Sources**: tables of raw data
+  - **Staging**: rename columns, casting types, currency conversion. By default should be views.
+  - **Intermediate**: joins and aggregations. Should not be querying raw directly. Optional.
+  - **Fact table**: real-world processes that have occurred or are occurring. Usually, an immutable event stream: sessions, transactions, orders, stories, votes. Should be tall, narrow tables.
+  - **Dimensions**: each row is a person, place, or thing. Mutable, though slowly changing: customers, products, candidates, buildings, employees. Wide short tables.
+
+- dbt source freshness
+- Codegen package to automatically onboard tables from DW.
+  - https://hub.getdbt.com/
+  - Click on plus sign to create new file containing `{{ codegen.generate_source(schema_name='jaffle_shop', database_name='raw') }}`
+  - Press "compile" → auto generates sources file
+
+---
+
+
 ## Tests
+
+- **Generic**: reusable, defined in yml. 4 built-in generic tests:
+  - `unique`: ensures every value in a column is unique
+  - `not_null`: ensures a column contains no null values
+  - `accepted_values`: ensures values in a column are one of a list.
+  - `relationships`: validates that all values in a column have a corresponding value in a parent table's PK column ensuring referential integrity.
+- **Singular**: custom sql query stored in sql file in custom test folder.
+
+`dbt_utils` package contains existing singular tests
 
 https://hub.getdbt.com/metaplane/dbt_expectations/latest/
 https://hub.getdbt.com/dbt-labs/dbt_utils/latest/
@@ -127,7 +312,7 @@ select * from raw.stripe.payment limit 10;
 
 ## Deployment 
 
-- configure environments (Orchestration -> Environments): https://fh556.us1.dbt.com/deploy/70471823551914/projects/70471823574907/environments 
+- configure environments (Orchestration -> Environments): https://fh556.us1.dbt.com/deploy/<account id>/projects/<project id>/environments 
 
 ## [Materialization](https://docs.getdbt.com/docs/build/materializations?version=1.12)
 
@@ -189,7 +374,6 @@ select * from raw.stripe.payment limit 10;
         - sync_all_columns: adds any new columns to the existing table and removes any columns that go missing in source. The same behavior applies to data type changes. Might require full table scan (BigQuery).
   - Incremental jobs best practices:
     - A CI job is triggered when a Git pull request is merged. 
-    - 
     - `dbt build --select state:modified+`. Only rebuilds models that changed in last merge + models that depend on changes.
     - Because your CI job is building modified models into a PR-specific schema, on the first execution of dbt build --select state:modified+, the modified incremental model will be built in its entirety because it does not yet exist in the PR-specific schema and is_incremental will be false. Not ideal: slow and expensive. Can avoid by using `dbt clone --select state:modified+,config.materialized:incremental,state:old` before `dbt build --select state:modified+`
       Clones all the pre-existing incremental models that have been modified or are downstream of another module that has been modified.
@@ -567,9 +751,9 @@ Choices:
                     - curl: 
                         ```
                             curl --request POST \
-                            --url https://cloud.getdbt.com/api/v2/accounts/52322/jobs/133918/run/ \
+                            --url https://cloud.getdbt.com/api/v2/accounts/<account id>/jobs/133918/run/ \
                             --header 'Content-Type: application/json' \
-                            --header 'Authorization: Token dbts_QcfQq8IORoHm1qgRxFEFUXrYIRxSe-bYBVfTXKkwT7O4yuU3vEI13wCQ==' \
+                            --header 'Authorization: Token <token>' \
                             --data '{"cause":"Triggered from curl"}'
                         ```     
                     - python: `python3 trigger_dbt_cloud_api.py`
@@ -577,7 +761,7 @@ Choices:
                             import requests
 
                             headers = {
-                                'Authorization': 'Token dbts_QcfQq8IORoHm1qgRxFEFUXrYIRxSe-bYBVfTXKkwT7O4yuU3vEI13wCQ==',
+                                'Authorization': 'Token <token>',
                             }
 
                             json_data = {
@@ -585,7 +769,7 @@ Choices:
                             }
 
                             response = requests.post(
-                                'https://cloud.getdbt.com/api/v2/accounts/52322/jobs/133918/run/',
+                                'https://cloud.getdbt.com/api/v2/accounts/<account id>/jobs/133918/run/',
                                 headers=headers,
                                 json=json_data
                             )
